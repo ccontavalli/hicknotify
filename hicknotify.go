@@ -10,6 +10,7 @@ import "strconv"
 import "time"
 import "encoding/json"
 import "os"
+import "gopkg.in/gomail.v2"
 
 type Event struct {
   etype string
@@ -51,7 +52,7 @@ func GenerateEvents(wg *sync.WaitGroup, config Config, camera Camera, ec chan Ev
   event := Event{camera: &camera}
   defer wg.Done()
 
-  go GenerateTimeout(&camera, lc, ec)
+  go GenerateTimeout(config, &camera, lc, ec)
 
   for {
     if time.Now().Before(last_attempt.Add(time.Second * config.ErrorRetryTime)) {
@@ -131,9 +132,17 @@ type Config struct {
   Username string
   Password string
 
-  DampeningTime int
-  ErrorRetryTime int
-  WatchdogTime int
+  DampeningTime time.Duration
+  ErrorRetryTime time.Duration
+  WatchdogTime time.Duration
+
+  MailFrom string
+  MailTo []string
+
+  MailServer string
+  MailPort int
+  MailUser string
+  MailPassword string
 }
 
 func LoadConfig() (Config, error) {
@@ -158,6 +167,22 @@ func LoadConfig() (Config, error) {
     configuration.WatchdogTime = 5
   }
   return configuration, nil
+}
+
+func SendMail(config Config, event Event, now time.Time) {
+  fmt.Println("SENDING NOTIFICATION FOR", event, event.camera.Name, now)
+  m := gomail.NewMessage()
+  m.SetHeader("From", config.MailFrom)
+  m.SetHeader("To", config.MailTo...)
+  m.SetHeader("Subject", fmt.Sprintf("[NVR] Event in '%s'", event.camera.Name))
+  m.SetBody("text/html", fmt.Sprintf("Event: %s<br>State: %s<br>Count: %d<br>At: %s<br>In: %s<br>Url: %s",
+                                     event.etype, event.estate, event.ecount, now, event.camera.Name, event.camera.Url))
+
+  d := gomail.NewDialer(config.MailServer, config.MailPort, config.MailUser, config.MailPassword)
+  err := d.DialAndSend(m)
+  if err != nil {
+    fmt.Println("ERROR SENDING NOTIFICATION", err)
+  }
 }
 
 func main() {
@@ -189,8 +214,9 @@ func main() {
         key := DampKey{event.etype, event.camera}
         last, ok := dampener[key]
         if !ok || time.Now().After(last.Add(config.DampeningTime * time.Second)) {
-          fmt.Println("GENERATED ", *event.camera, event, key)
-          dampener[key] = time.Now()
+          now := time.Now()
+          SendMail(config, event, now)
+          dampener[key] = now
         } else {
           // fmt.Println("TIME DAMPENED ", event, key)
           dampener[key] = time.Now()
