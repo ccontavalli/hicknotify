@@ -49,12 +49,12 @@ func GeneratePresence(wg *sync.WaitGroup, config Config, host string, hc chan bo
   defer wg.Done()
 
   for {
-    cmd := exec.Command("arping", "-c", "1", host)
+    cmd := exec.Command("ping", "-c", "1", host)
     err := cmd.Run()
     if err == nil {
       hc <- true
     } else {
-      fmt.Println("ARPING FAILED", host, err)
+      fmt.Println("PING FAILED", host, err)
     }
 
     time.Sleep(config.PingInterval * time.Second)
@@ -244,6 +244,7 @@ func main() {
   for {
     select {
       case <-hc:
+        fmt.Println("HOST DETECTED", hostsilence)
         hostsilence = time.Now()
         break;
 
@@ -251,7 +252,7 @@ func main() {
         key := DampKey{event.etype, event.camera}
         last, ok := dampener[key]
         now := time.Now()
-        if !ok || (now.After(hostsilence.Add(config.PingDisable * time.Second)) && now.After(last.Add(config.DampeningTime * time.Second))) {
+        if now.After(hostsilence.Add(config.PingDisable * time.Second)) && (!ok || now.After(last.Add(config.DampeningTime * time.Second))) {
           SendMail(config, event, now)
           dampener[key] = now
         } else {
