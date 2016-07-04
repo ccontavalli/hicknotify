@@ -244,7 +244,7 @@ func main() {
   for {
     select {
       case <-hc:
-        fmt.Println("HOST DETECTED", hostsilence)
+        //fmt.Println("HOST DETECTED", hostsilence)
         hostsilence = time.Now()
         break;
 
