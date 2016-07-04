@@ -11,6 +11,7 @@ import "time"
 import "encoding/json"
 import "os"
 import "gopkg.in/gomail.v2"
+import "os/exec"
 
 type Event struct {
   etype string
@@ -42,6 +43,21 @@ func GenerateTimeout(config Config, camera *Camera, lc chan bool, ec chan Event)
         break
 
     }
+  }
+}
+func GeneratePresence(wg *sync.WaitGroup, config Config, host string, hc chan bool) {
+  defer wg.Done()
+
+  for {
+    cmd := exec.Command("arping", "-c", "1", host)
+    err := cmd.Run()
+    if err == nil {
+      hc <- true
+    } else {
+      fmt.Println("ARPING FAILED", host, err)
+    }
+
+    time.Sleep(config.PingInterval * time.Second)
   }
 }
 
@@ -128,6 +144,7 @@ type Camera struct {
 
 type Config struct {
   Cameras []Camera
+  Hosts []string
 
   Username string
   Password string
@@ -143,6 +160,9 @@ type Config struct {
   MailPort int
   MailUser string
   MailPassword string
+
+  PingInterval time.Duration
+  PingDisable time.Duration
 }
 
 func LoadConfig() (Config, error) {
@@ -165,6 +185,12 @@ func LoadConfig() (Config, error) {
   }
   if configuration.WatchdogTime <= 0 {
     configuration.WatchdogTime = 5
+  }
+  if configuration.PingInterval <= 0 {
+    configuration.PingInterval = 1
+  }
+  if configuration.PingDisable <= 0 {
+    configuration.PingDisable = 600
   }
   return configuration, nil
 }
@@ -192,14 +218,20 @@ func main() {
     return
   }
 
-  urls := config.Cameras
+  hc := make(chan bool)
   ec := make(chan Event)
   wg := &sync.WaitGroup{}
-  for _, camera := range urls {
-    fmt.Println("STARTING ", camera)
+  for _, camera := range config.Cameras {
+    fmt.Println("MONITORING CAMERA", camera)
 
     wg.Add(1)
     go GenerateEvents(wg, config, camera, ec)
+  }
+
+  for _, host := range config.Hosts {
+    fmt.Println("MONITORING HOST", host)
+    wg.Add(1)
+    go GeneratePresence(wg, config, host, hc)
   }
 
   type DampKey struct {
@@ -207,20 +239,26 @@ func main() {
     camera *Camera
   }
 
+  var hostsilence time.Time
   dampener := make(map[DampKey]time.Time)
   for {
     select {
+      case <-hc:
+        hostsilence = time.Now()
+        break;
+
       case event := <-ec:
         key := DampKey{event.etype, event.camera}
         last, ok := dampener[key]
-        if !ok || time.Now().After(last.Add(config.DampeningTime * time.Second)) {
-          now := time.Now()
+        now := time.Now()
+        if !ok || (now.After(hostsilence.Add(config.PingDisable * time.Second)) && now.After(last.Add(config.DampeningTime * time.Second))) {
           SendMail(config, event, now)
           dampener[key] = now
         } else {
           // fmt.Println("TIME DAMPENED ", event, key)
           dampener[key] = time.Now()
         }
+        break;
     }
   }
 
