@@ -2,7 +2,7 @@
 
 This repository contains a small [go](http://golang.org) program to:
 
-   * Monitor a set of HICKVISION Cameras.
+   * Monitor a set of HIKVISION Cameras.
    * Send notifications via email if any of the cameras report any event, or connectivity to the camera is lost.
    * Typical events are the PIR sensors detecting movement, camera covered, disconnected, ... any event the
      software on the camera can detect.
@@ -19,18 +19,18 @@ hicknotify will, however:
      notifications based on the presence of your phone in the house connected
      to wifi, or your wifi connected car in the garage.
 
-The software was written based on specifications from HICKVISION, which you can find
+The software was written based on specifications from HIKVISION, which you can find
 [here](http://oversea-download.hikvision.com/uploadfile/Leaflet/ISAPI/HIKVISION%20ISAPI_2.0-IPMD%20Service.pdf).
 
-If the link is out of date, you can probably find them by searching for "HICKVISION" "ISAPI" "alarmStream" or
+If the link is out of date, you can probably find them by searching for "HIKVISION" "ISAPI" "alarmStream" or
 similar on your favourite search engine.
 
 ## Why did you write this?
 
 A few reasons:
 
-   1. It was my starting point for an home automation project using HICKVISION APIs. Maybe it can be useful to you as well.
-   2. HICKVISION Cameras and NVRs can send email notifications directly, without use of `hicknotify`. However, it is harder to integrate with
+   1. It was my starting point for an home automation project using HIKVISION APIs. Maybe it can be useful to you as well.
+   2. HIKVISION Cameras and NVRs can send email notifications directly, without use of `hicknotify`. However, it is harder to integrate with
       other automation (example: don't notify if you can detect my phone at home).
    3. ... additionally, using any form of notification from the Cameras or NVR
       directly requires them having direct internet connectivity.  And when
@@ -57,7 +57,7 @@ Create a `config.json` file in the same directory:
       # error, ... but not the cameras' sensors.
       # 
       # If your cameras are plugged into the NVR, and not accessible directly,
-      # many HICKVISION NVRs have a feature called 'Virtual Host' that will
+      # many HIKVISION NVRs have a feature called 'Virtual Host' that will
       # instruct the NVR to export the cameras directly on the same IP under
       # different ports. You should find the option under
       # "Config -> Network- > Advanced -> Other Tab"
